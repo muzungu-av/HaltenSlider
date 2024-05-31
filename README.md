@@ -37,8 +37,8 @@ const images = [
 const App: React.FC = () => {
   return (
       <HaltenSlider
-        images={images}
         mode="linear"
+        images={images}
         imageSpacing={15}
         scrollSensitivity={1.5}
         height="500px"
@@ -64,7 +64,7 @@ __interface HaltenSliderProps:__
 * *height* - slider container height.
 * *imgStyle* - styles that will be applied to the pictures.
 * *additionalWidth* - additional width. This width adjustment is needed by the swipe algorithm if you add borders. Set equal to (border * 2).
-* *align* -  Align only valid for *"linear"* mode
+* *align* -  Align only valid for *"linear"* mode ("top", "center", "bottom")
 
 ## Mosaic Mode
 
@@ -93,7 +93,7 @@ const App: React.FC = () => {
     <HaltenSlider
       mode="mosaic"
       images={images}
-      scrollSensitivity={0.9}
+      scrollSensitivity={0.7}
       height={"500px"}
       imgStyle={{ border: "11px solid black" }}
     />
@@ -102,4 +102,3 @@ const App: React.FC = () => {
 
 export default App;
 ```
-

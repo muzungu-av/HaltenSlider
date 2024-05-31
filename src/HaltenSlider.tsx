@@ -20,14 +20,16 @@ interface HaltenSliderProps {
   align?: "top" | "center" | "bottom";
 }
 
-const PARALLAX_CLASS_NAME = "div-parallax-root-cntr";
+const PARALLAX_CLASS_NAME = "parallax-root-cntr-cls";
+const ANIMATED_CLASS_NAME = "animated-cls";
+const SLIDER_CLASS_NAME = "slider-container-cls";
 
 export const HaltenSlider: React.FC<HaltenSliderProps> = ({
   images,
-  imageSpacing,
   scrollSensitivity,
   height,
   mode,
+  imageSpacing = 0,
   imgStyle,
   additionalWidth = 0,
   align = "top",
@@ -39,8 +41,8 @@ export const HaltenSlider: React.FC<HaltenSliderProps> = ({
   const [totalWidth, setTotalWidth] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
 
+  /* Observer to track changes in container size */
   useEffect(() => {
-    // Observer для отслеживания изменения размеров контейнера
     const resizeObserver = new ResizeObserver((entries) => {
       if (entries[0]) {
         setContainerWidth(entries[0].contentRect.width);
@@ -58,8 +60,8 @@ export const HaltenSlider: React.FC<HaltenSliderProps> = ({
     };
   }, []);
 
+  /* Uploading all images and calculating their sizes */
   useEffect(() => {
-    // Загрузка всех изображений и расчет их размеров
     const loadImages = async () => {
       const loadedImages = await Promise.all(
         images.map((image) => {
@@ -99,6 +101,7 @@ export const HaltenSlider: React.FC<HaltenSliderProps> = ({
     loadImages();
   }, [images, height, mode, imageSpacing, additionalWidth]);
 
+  /* Scrolling restriction */
   useEffect(() => {
     const handleScroll = (event: WheelEvent) => {
       if (parallaxRef.current) {
@@ -145,7 +148,7 @@ export const HaltenSlider: React.FC<HaltenSliderProps> = ({
 
   return (
     <div
-      className="slider-container"
+      className={SLIDER_CLASS_NAME}
       style={{ overflow: "hidden", width: "100%", height }}
       ref={containerRef}
     >
@@ -162,7 +165,7 @@ export const HaltenSlider: React.FC<HaltenSliderProps> = ({
         }}
       >
         <animated.div
-          className="animated_div"
+          className={ANIMATED_CLASS_NAME}
           style={{
             display: "flex",
             overflow: "hidden",
