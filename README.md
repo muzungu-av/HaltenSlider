@@ -2,6 +2,10 @@
 
 Halten Slider is a customizable slider component built with React and React Spring.
 
+## Dependencies
+
+React-Spring is a library for creating animations in React. It provides powerful and flexible tools for implementing animations with smooth transitions and reactive changes.
+
 ## Installation
 
 To install the component, run:
@@ -42,8 +46,7 @@ const App: React.FC = () => {
         imageSpacing={15}
         scrollSensitivity={1.5}
         height="500px"
-        imgStyle={{ border: '11px solid black' }}
-        additionalWidth={22}
+        imgStyle={{ border: '10px solid black' }}
         align="top"
       />
   );
@@ -59,11 +62,9 @@ __interface HaltenSliderImage__
 __interface HaltenSliderProps:__
 
 * *imageSpacing* - distance in pixels between images, taking into account the border
-
 * *scrollSensitivity* - swipe sensitivity (speed).
 * *height* - slider container height.
 * *imgStyle* - styles that will be applied to the pictures.
-* *additionalWidth* - additional width. This width adjustment is needed by the swipe algorithm if you add borders. Set equal to (border * 2).
 * *align* -  Align only valid for *"linear"* mode ("top", "center", "bottom")
 
 ## Mosaic Mode
@@ -95,7 +96,7 @@ const App: React.FC = () => {
       images={images}
       scrollSensitivity={0.7}
       height={"500px"}
-      imgStyle={{ border: "11px solid black" }}
+      imgStyle={{ border: "10px solid black" }}
     />
   );
 };

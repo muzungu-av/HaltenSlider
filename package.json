@@ -1,6 +1,6 @@
 {
   "name": "@haltentech/halten-slider",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "A customizable slider component built with React and React Spring",
   "main": "dist/index.js",
   "module": "dist/index.js",

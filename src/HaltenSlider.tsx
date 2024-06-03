@@ -16,7 +16,6 @@ interface HaltenSliderProps {
   mode: "linear" | "mosaic";
   imageSpacing?: number;
   imgStyle?: React.CSSProperties;
-  additionalWidth?: number;
   align?: "top" | "center" | "bottom";
 }
 
@@ -31,7 +30,6 @@ export const HaltenSlider: React.FC<HaltenSliderProps> = ({
   mode,
   imageSpacing = 0,
   imgStyle,
-  additionalWidth = 0,
   align = "top",
 }) => {
   const parallaxRef = useRef<any>(null);
@@ -60,6 +58,13 @@ export const HaltenSlider: React.FC<HaltenSliderProps> = ({
     };
   }, []);
 
+  const borderSize =
+    typeof imgStyle?.border === "string"
+      ? parseInt(imgStyle.border.split(" ")[0])
+      : typeof imgStyle?.border === "number"
+      ? imgStyle.border
+      : 0;
+
   /* Uploading all images and calculating their sizes */
   useEffect(() => {
     const loadImages = async () => {
@@ -80,10 +85,12 @@ export const HaltenSlider: React.FC<HaltenSliderProps> = ({
                 (parseInt(height) * images[index].proportional_height) / 100;
               const imageWidth =
                 (img.naturalWidth / img.naturalHeight) * imageHeight;
-              acc += imageWidth + additionalWidth;
+              acc += imageWidth - borderSize * 2;
+              if (index < loadedImages.length - 2) {
+                acc += imageSpacing ?? 0;
+              }
               return acc;
-            }, 0) +
-            (images.length - 1) * (imageSpacing || 0)
+            }, 0)
           : images.reduce((acc, image, index) => {
               const img = loadedImages[index];
               const imageHeight =
@@ -91,15 +98,15 @@ export const HaltenSlider: React.FC<HaltenSliderProps> = ({
               const imageWidth =
                 (img.naturalWidth / img.naturalHeight) * imageHeight;
               const posX = image.pos_x || 0;
-              const elementWidth = posX + imageWidth + additionalWidth;
-              return Math.max(acc, elementWidth);
+              const elementWidth = posX + imageWidth;
+              return Math.max(acc, elementWidth) - borderSize;
             }, 0);
 
       setTotalWidth(calculatedTotalWidth);
     };
 
     loadImages();
-  }, [images, height, mode, imageSpacing, additionalWidth]);
+  }, [images, height, mode, imageSpacing, borderSize]);
 
   /* Scrolling restriction */
   useEffect(() => {
@@ -133,14 +140,15 @@ export const HaltenSlider: React.FC<HaltenSliderProps> = ({
   }, [scrollOffset, set, totalWidth, scrollSensitivity, containerWidth]);
 
   const calculateTop = (imageHeight: number) => {
-    const borderSize = additionalWidth;
-    const imageHeightWithBorder = imageHeight + borderSize;
+    const b2 = borderSize / 2;
+
+    const imageHeightWithBorder = imageHeight + b2;
 
     switch (align) {
       case "center":
-        return `calc(50% - ${imageHeightWithBorder / 2}px)`;
+        return `calc(50% - ${(imageHeightWithBorder - b2) / 2}px)`;
       case "bottom":
-        return `calc(100% - ${imageHeightWithBorder}px)`;
+        return `calc(100% - ${imageHeightWithBorder - b2}px)`;
       default:
         return "0";
     }
@@ -149,7 +157,7 @@ export const HaltenSlider: React.FC<HaltenSliderProps> = ({
   return (
     <div
       className={SLIDER_CLASS_NAME}
-      style={{ overflow: "hidden", width: "100%", height }}
+      style={{ overflow: "hidden", width: "100%" }}
       ref={containerRef}
     >
       <Parallax
@@ -190,7 +198,9 @@ export const HaltenSlider: React.FC<HaltenSliderProps> = ({
                   top: topPosition,
                   height: `${imageHeight}px`,
                   marginRight:
-                    mode === "linear" ? `${imageSpacing}px` : undefined,
+                    mode === "linear" && index < images.length - 1
+                      ? `${imageSpacing}px`
+                      : undefined,
                 }}
               >
                 <img
