@@ -1,6 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Parallax } from "@react-spring/parallax";
 import { useSpring, animated } from "@react-spring/web";
+import { useImageLoader } from "./hooks/useImageLoader";
+import { useMouseHandlers } from "./hooks/useMouseHandlers";
+import { useWheelHandler } from "./hooks/useWheelHandler";
+import { useResizeObserver } from "./hooks/useResizeObserver";
+import { calculateTop } from "./utils/calculateTop";
 
 interface HaltenSliderImage {
   src: string;
@@ -11,12 +16,22 @@ interface HaltenSliderImage {
 
 interface HaltenSliderProps {
   images: HaltenSliderImage[];
-  scrollSensitivity: number;
   height: string;
   mode: "linear" | "mosaic";
   imageSpacing?: number;
   imgStyle?: React.CSSProperties;
   align?: "top" | "center" | "bottom";
+  leftButtonRef?: React.RefObject<HTMLButtonElement>;
+  rightButtonRef?: React.RefObject<HTMLButtonElement>;
+  wheelScrollSensitivity?: number;
+  btnScrollStep?: number;
+  onHoverScrollSensitivity?: number;
+  onReady?: () => void;
+  onScrollStart?: () => void;
+  onChange?: () => void;
+  onScrollEnd?: () => void;
+  onBtnScrollClick?: (direction: string, scrollX: number) => void;
+  onMouseWheelScroll?: () => void;
 }
 
 const PARALLAX_CLASS_NAME = "parallax-root-cntr-cls";
@@ -25,38 +40,51 @@ const SLIDER_CLASS_NAME = "slider-container-cls";
 
 export const HaltenSlider: React.FC<HaltenSliderProps> = ({
   images,
-  scrollSensitivity,
   height,
   mode,
   imageSpacing = 0,
   imgStyle,
   align = "top",
+  leftButtonRef,
+  rightButtonRef,
+  wheelScrollSensitivity = 1.0,
+  btnScrollStep = 150,
+  onHoverScrollSensitivity = 25,
+  onReady,
+  onScrollStart,
+  onChange,
+  onScrollEnd,
+  onBtnScrollClick,
+  onMouseWheelScroll,
 }) => {
+  // Ссылка на компонент Parallax
   const parallaxRef = useRef<any>(null);
+  // Ссылка на контейнер
   const containerRef = useRef<HTMLDivElement>(null);
+  // Состояние для текущего смещения скролла
   const [scrollOffset, setScrollOffset] = useState(0);
-  const [{ scrollX }, set] = useSpring(() => ({ scrollX: 0 }));
+  // Ref для актуального значения смещения
+  const scrollOffsetRef = useRef(0);
+  // Состояния для общей ширины и ширины контейнера
   const [totalWidth, setTotalWidth] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
+  // Флаг для отслеживания загрузки изображений
+  const [isLoaded, setIsLoaded] = useState(false);
+  // Состояния для направления скролла и флага скроллинга
+  const scrollDirection = useRef<"left" | "right" | null>(null);
+  const isScrolling = useRef<boolean>(false);
+  // Состояние для отслеживания скроллинга колесом мыши
+  const [isWheelScrolling, setIsWheelScrolling] = useState(false);
 
-  /* Observer to track changes in container size */
-  useEffect(() => {
-    const resizeObserver = new ResizeObserver((entries) => {
-      if (entries[0]) {
-        setContainerWidth(entries[0].contentRect.width);
-      }
-    });
+  // Состояние анимации
+  const [styles, api] = useSpring(() => ({
+    scrollX: 0,
+    onStart: () => onScrollStart?.(),
+    onChange: () => onChange?.(),
+    onRest: () => onScrollEnd?.(),
+  }));
 
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
-    }
-
-    return () => {
-      if (containerRef.current) {
-        resizeObserver.unobserve(containerRef.current);
-      }
-    };
-  }, []);
+  useResizeObserver(containerRef, setContainerWidth);
 
   const borderSize =
     typeof imgStyle?.border === "string"
@@ -65,93 +93,71 @@ export const HaltenSlider: React.FC<HaltenSliderProps> = ({
       ? imgStyle.border
       : 0;
 
-  /* Uploading all images and calculating their sizes */
+  useImageLoader({
+    images,
+    height,
+    mode,
+    imageSpacing,
+    borderSize,
+    setTotalWidth,
+    setIsLoaded,
+    onReady,
+  });
+
+  // Обновление ref смещения
   useEffect(() => {
-    const loadImages = async () => {
-      const loadedImages = await Promise.all(
-        images.map((image) => {
-          return new Promise<HTMLImageElement>((resolve) => {
-            const img = new Image();
-            img.src = image.src;
-            img.onload = () => resolve(img);
-          });
-        })
-      );
+    scrollOffsetRef.current = scrollOffset;
+  }, [scrollOffset]);
 
-      const calculatedTotalWidth =
-        mode === "linear"
-          ? loadedImages.reduce((acc, img, index) => {
-              const imageHeight =
-                (parseInt(height) * images[index].proportional_height) / 100;
-              const imageWidth =
-                (img.naturalWidth / img.naturalHeight) * imageHeight;
-              acc += imageWidth - borderSize * 2;
-              if (index < loadedImages.length - 2) {
-                acc += imageSpacing ?? 0;
-              }
-              return acc;
-            }, 0)
-          : images.reduce((acc, image, index) => {
-              const img = loadedImages[index];
-              const imageHeight =
-                (parseInt(height) * image.proportional_height) / 100;
-              const imageWidth =
-                (img.naturalWidth / img.naturalHeight) * imageHeight;
-              const posX = image.pos_x || 0;
-              const elementWidth = posX + imageWidth;
-              return Math.max(acc, elementWidth) - borderSize;
-            }, 0);
+  useMouseHandlers({
+    isLoaded,
+    containerRef,
+    parallaxRef,
+    scrollDirection,
+    isScrolling,
+    isWheelScrolling,
+    onHoverScrollSensitivity,
+    api,
+    totalWidth,
+    containerWidth,
+    scrollOffsetRef,
+    setScrollOffset,
+  });
 
-      setTotalWidth(calculatedTotalWidth);
-    };
+  useWheelHandler({
+    parallaxRef,
+    wheelScrollSensitivity,
+    totalWidth,
+    containerWidth,
+    scrollOffsetRef,
+    setScrollOffset,
+    onMouseWheelScroll,
+    setIsWheelScrolling,
+    api,
+  });
 
-    loadImages();
-  }, [images, height, mode, imageSpacing, borderSize]);
-
-  /* Scrolling restriction */
-  useEffect(() => {
-    const handleScroll = (event: WheelEvent) => {
-      if (parallaxRef.current) {
-        const scrollAmount = event.deltaY * scrollSensitivity;
-        setScrollOffset((prev) => {
-          const newOffset = prev + scrollAmount;
-          const maxScrollOffset = -(totalWidth - containerWidth);
-          if (newOffset > 0) {
-            return 0;
-          } else if (newOffset < maxScrollOffset) {
-            return maxScrollOffset;
-          } else {
-            return newOffset;
-          }
-        });
-        set({ scrollX: scrollOffset });
-        event.preventDefault();
-      }
-    };
-
-    const parallaxContainer = parallaxRef.current.container.current;
-    parallaxContainer.addEventListener("wheel", handleScroll, {
-      passive: false,
-    });
-
-    return () => {
-      parallaxContainer.removeEventListener("wheel", handleScroll);
-    };
-  }, [scrollOffset, set, totalWidth, scrollSensitivity, containerWidth]);
-
-  const calculateTop = (imageHeight: number) => {
-    const b2 = borderSize / 2;
-
-    const imageHeightWithBorder = imageHeight + b2;
-
-    switch (align) {
-      case "center":
-        return `calc(50% - ${(imageHeightWithBorder - b2) / 2}px)`;
-      case "bottom":
-        return `calc(100% - ${imageHeightWithBorder - b2}px)`;
-      default:
-        return "0";
+  const handleLeftButtonClick = () => {
+    const newOffset = scrollOffsetRef.current + btnScrollStep;
+    const maxScrollOffset = -(totalWidth - containerWidth);
+    const clampedOffset = Math.max(Math.min(newOffset, 0), maxScrollOffset);
+    setScrollOffset(clampedOffset);
+    scrollOffsetRef.current = clampedOffset;
+    if (onBtnScrollClick) {
+      onBtnScrollClick("left", clampedOffset);
     }
+    api.start({ scrollX: clampedOffset });
+  };
+
+  const handleRightButtonClick = () => {
+    const newOffset = scrollOffsetRef.current - btnScrollStep;
+    const maxScrollOffset = -(totalWidth - containerWidth);
+    const clampedOffset = Math.max(Math.min(newOffset, 0), maxScrollOffset);
+    setScrollOffset(clampedOffset);
+    scrollOffsetRef.current = clampedOffset;
+    if (onBtnScrollClick) {
+      onBtnScrollClick("right", clampedOffset);
+    }
+    api.start({ scrollX: clampedOffset });
   };
 
   return (
@@ -180,14 +186,16 @@ export const HaltenSlider: React.FC<HaltenSliderProps> = ({
             position: "relative",
             height: "100%",
             width: `${totalWidth}px`,
-            transform: scrollX.to((x) => `translate3d(${x}px, 0, 0)`),
+            transform: styles.scrollX.to((x) => `translate3d(${x}px, 0, 0)`),
             flexDirection: mode === "linear" ? "row" : "initial",
           }}
         >
           {images.map(({ src, proportional_height, pos_x, pos_y }, index) => {
             const imageHeight = (parseInt(height) * proportional_height) / 100;
             const topPosition =
-              mode === "linear" ? calculateTop(imageHeight) : `${pos_y}px`;
+              mode === "linear"
+                ? calculateTop(imageHeight, align)
+                : `${pos_y}px`;
 
             return (
               <div
@@ -216,6 +224,16 @@ export const HaltenSlider: React.FC<HaltenSliderProps> = ({
           })}
         </animated.div>
       </Parallax>
+      <button
+        onClick={handleLeftButtonClick}
+        ref={leftButtonRef}
+        style={{ display: "none" }}
+      ></button>
+      <button
+        onClick={handleRightButtonClick}
+        ref={rightButtonRef}
+        style={{ display: "none" }}
+      ></button>
     </div>
   );
 };
