@@ -103,3 +103,5 @@ const App: React.FC = () => {
 
 export default App;
 ```
+
+![Example slider](slider_screen.png)
